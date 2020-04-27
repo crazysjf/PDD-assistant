@@ -44,17 +44,23 @@ class WebOperator(Singleton):
         self._driver.implicitly_wait(0)
         ret = []
         # 商品素材
-        self._driver.get("https://mms.pinduoduo.com/goods/goods_materials")
-        input("确保每页宝贝数是最大（100），并且加载完毕。按任意键继续...")
+        #self._driver.get("https://mms.pinduoduo.com/goods/goods_materials")
+        #input("确保每页宝贝数是最大（100），并且加载完毕。按任意键继续...")
 
         # es = self._driver.find_elements_by_css_selector("div.goodsInfo div.goods-id")
         # for e in es:
         #     print(e.text)
-        trs = self._driver.find_elements_by_css_selector("div.materialsTableList table tr")
+        #trs = self._driver.find_elements_by_css_selector("div.materialsTableList table tbody tr")
+        trs = self._driver.find_elements_by_xpath("//div[@class='materialsTableList']//div[@class='TB_innerMiddle_290']//table//tbody//tr")
+        #print(len(trs))
+        i = 0
         for tr in trs:
+            #i = i+1
+            #print(i, tr.text)
             # 判断是否已经存在白底图
             has_wbg_pic = False
             image_statuses = tr.find_elements_by_xpath(".//div[@class='materialsPicContainer']//div[@class='imageStatus']")
+            #print(image_statuses)
             if len(image_statuses) != 0:
                 if image_statuses[0].text != "":
                     has_wbg_pic = True
@@ -64,18 +70,42 @@ class WebOperator(Singleton):
                 id_text = ids[0].text # "ID : 103353683024
                 id = id_text.split(":")[1].strip()
                 if has_wbg_pic == False:
-                    ret.append(id)
+                    if id  not in ret: # 防止xpath的bug导致ID重复，trs会有重复记录
+                        ret.append(id)
 
 
         self._driver.implicitly_wait(10)
         #print(ret)
         return ret
 
+    # 1个文件夹只能放10个文件，不够时创建新文件夹
+    def get_current_sub_dir(self, base):
+        def construct_path(num):
+            return base + "\\" + str(num)
+
+        cont = os.listdir(base)
+
+        try:
+            max_num = max(map(int, list(filter(lambda s: s.isdigit(), filter(lambda p:os.path.isdir(os.path.join(base, p)), cont)))))
+        except:
+            max_num = 0
+
+        if max_num == 0 or len(os.listdir(construct_path(max_num))) >= 10:
+            max_num = max_num + 1
+            d = construct_path(max_num)
+            if not os.path.exists(d):
+                os.makedirs(d)
+                return d
+
+        return construct_path(max_num)
 
     def download_wbg_pic(self, id):
         save_dir = os.path.dirname(os.path.abspath(__file__)) + "\\白底-" + str(date.today())
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
+
+        # 每次只能上传10张白底，把白底放到多个文件夹中，每个文件夹10张图
+        num_dir = self.get_current_sub_dir(save_dir)
 
         base_url = "https://mms.pinduoduo.com/goods/goods_detail?goods_id="
         url = base_url + id
@@ -89,7 +119,7 @@ class WebOperator(Singleton):
         # 第五张固定为白底
         pic_url = pics[4].get_attribute("src")
 
-        urllib.request.urlretrieve(pic_url, save_dir + "\\" + id + "-wbg.jpg")
+        urllib.request.urlretrieve(pic_url, num_dir + "\\" + id + "-wbg.jpg")
         print("downloaded: " + id)
 
     def meizhe_set_clearance_price_for_one_good(self, code):
