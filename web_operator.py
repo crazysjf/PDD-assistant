@@ -40,6 +40,9 @@ class WebOperator(Singleton):
         # 默认等待时间10秒
         self._driver.implicitly_wait(10)
 
+    def fill_properties_for_good(self):
+        
+
     def get_good_id_list(self):
         self._driver.implicitly_wait(0)
         ret = []
